@@ -6,20 +6,25 @@ module alu (
     output reg [5:0] status  //{C, Z, N, V, P, A}
  );
  reg cf, zf, nf, vf, pf, af;
+ reg flag_enable;
  reg [4:0] aux_check;
     always @(*) begin
         Result = 16'b0;
-        //status =6'b0; i think it gets overwritten
+        
+        aux_check = 5'b0;//internal reg to check for aux flag
+
         cf = 1'b0;
         zf = 1'b0;
         nf = 1'b0; 
         vf = 1'b0; 
         pf = 1'b0; 
         af = 1'b0;
+        flag_enable=1'b1;
      case (F)
             //ARITHMETIC
             5'b00000: begin //   N/A
             Result=16'b0;
+            flag_enable=1'b0;
             end
 
             5'b00001: begin // INC
@@ -30,6 +35,7 @@ module alu (
 
             5'b00010: begin//   N/A
             Result=16'b0;
+            flag_enable=1'b0;
             end
 
             5'b00011: begin//   DEC
@@ -122,10 +128,10 @@ module alu (
                 Result={A[0],A[15:1]};
             end
 
-
+//cin here is the carry from the prev operation (assumed it is connected to some top module like a controller or an MPU)
             5'b10110: begin//RCL
                 
-                Result={A[14:0],cf};
+                Result={A[14:0],cin};
                 cf=A[15];//this must be in this order 
                 
             end
@@ -133,23 +139,27 @@ module alu (
 
             5'b10111: begin//RCR
                 
-                Result={cf,A[15:1]};
+                Result={cin,A[15:1]};
                 cf=A[0];//this must be in this order 
             end
         
             default: begin
                 Result = 16'b0;
-                status=6'b0;
+                
+                flag_enable=1'b0;
             end
 
         endcase
 
         
-        //we can calculate zf,pf,nf here (always will be the same way to calculate)
+        //we can calculate zf,pf,nf here (always will be the same way to calculate for every operation)
+        if(flag_enable) 
+        begin
         zf=~|Result;//ZERO FLAG
-        pf=~^Result;//PARITY FLAG (odd parity)111
+        pf=~^Result;//PARITY FLAG (even parity)
         nf=Result[15];//negative flag
-
+        end
+        // no need for else her because of the initialization at the top
 
 
         status = {cf, zf, nf, vf, pf, af};//mapping
